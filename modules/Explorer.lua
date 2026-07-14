@@ -1174,47 +1174,69 @@ local function main()
 				Explorer.Refresh()
 			end
 		end})
+context:Register("TELEPORT_TO",{Name = "Teleport To", IconMap = Explorer.MiscIcons, Icon = "TeleportTo", OnClick = function()
+	local sList = selection.List
+	local char = plr.Character
+	local plrRP = char and char:FindFirstChild("HumanoidRootPart")
 
-		context:Register("TELEPORT_TO",{Name = "Teleport To", IconMap = Explorer.MiscIcons, Icon = "TeleportTo", OnClick = function()
-			local sList = selection.List
-			local plrRP = plr.Character and plr.Character:FindFirstChild("HumanoidRootPart")
+	if not plrRP then return end
 
-			if not plrRP then return end
+	local function teleportTo(cf)
+		plrRP.CFrame = CFrame.new(cf.Position + Settings.Explorer.TeleportToOffset)
+	end
 
-			for _,node in next, sList do
-				local Obj = node.Obj
+	for _,node in next, sList do
+		local Obj = node.Obj
 
-				if Obj:IsA("BasePart") then
-					if Obj.CanCollide then
-						plr.Character:MoveTo(Obj.Position)
-					else
-						plrRP.CFrame = CFrame.new(Obj.Position + Settings.Explorer.TeleportToOffset)
-					end
-					break
-				elseif Obj:IsA("Model") then
-					if Obj.PrimaryPart then
-						if Obj.PrimaryPart.CanCollide then
-							plr.Character:MoveTo(Obj.PrimaryPart.Position)
-						else
-							plrRP.CFrame = CFrame.new(Obj.PrimaryPart.Position + Settings.Explorer.TeleportToOffset)
-						end
-						break
-					else
-						local part = Obj:FindFirstChildWhichIsA("BasePart", true)
-						if part and nodes[part] then
-							if part.CanCollide then
-								plr.Character:MoveTo(part.Position)
-							else
-								plrRP.CFrame = CFrame.new(part.Position + Settings.Explorer.TeleportToOffset)
-							end
-							break
-						elseif Obj.WorldPivot then
-							plrRP.CFrame = Obj.WorldPivot
-						end
-					end
+		if Obj:IsA("BasePart") then
+			teleportTo(Obj.CFrame)
+			break
+
+		elseif Obj:IsA("Model") then
+			local ok, cf
+			if Obj.PrimaryPart then
+				cf = Obj.PrimaryPart.CFrame
+				ok = true
+			else
+				local success, pivotCF, size = pcall(function()
+					return Obj:GetBoundingBox()
+				end)
+				if success and pivotCF then
+					cf = pivotCF
+					ok = true
 				end
 			end
-		end})
+
+			if not ok then
+				local success, pivotCF = pcall(function()
+					return Obj:GetPivot()
+				end)
+				if success and pivotCF then
+					cf = pivotCF
+					ok = true
+				end
+			end
+
+			if ok then
+				teleportTo(cf)
+				break
+			end
+
+		elseif Obj:IsA("PVInstance") then
+			local success, pivotCF = pcall(function()
+				return Obj:GetPivot()
+			end)
+			if success and pivotCF then
+				teleportTo(pivotCF)
+				break
+			end
+
+		elseif Obj:IsA("Attachment") or Obj:IsA("Bone") then
+			teleportTo(Obj.WorldCFrame)
+			break
+		end
+	end
+end})
 
 		local OldAnimation
 		context:Register("PLAY_TWEEN",{Name = "Play Tween", IconMap = Explorer.MiscIcons, Icon = "Play", OnClick = function()
